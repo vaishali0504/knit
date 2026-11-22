@@ -24,7 +24,7 @@
 
 ## <img src="https://img.icons8.com/fluency/24/idea.png" width="24"/> Project in One Minute
 
-**KNIT** is a full-stack email productivity platform built as a final-year B.Tech project. It connects a Gmail mailbox through Google OAuth, imports emails securely, organizes them by category and importance, analyzes them with Gemini, generates structured summaries and replies, and provides a conversational AI assistant grounded in the user's authorized emails.
+**KNIT** is a full-stack email productivity platform built as a pre-final-year (third-year) B.Tech project. It connects a Gmail mailbox through Google OAuth, imports emails securely, organizes them by category and importance, analyzes them with Gemini, generates structured summaries and replies, and provides a conversational AI assistant grounded in the user's authorized emails.
 
 > The project prioritizes **user privacy, controlled AI behavior, database integrity, and real Gmail synchronization**.
 
@@ -97,35 +97,46 @@ mindmap
 ## 🖼️ Interactive Project Tour
 
 <details open>
-<summary><b>01 — AI Assistant experience</b></summary>
+<summary><b>01 — Live dashboard overview</b></summary>
 
 <div align="center">
-  <img src="docs/screenshots/ai-assistant.png" width="92%" alt="KNIT AI Assistant"/>
+  <img src="docs/screenshots/04-dashboard.png" width="92%" alt="KNIT live dashboard"/>
 </div>
 
-The assistant presents generated answers as readable Markdown with headings, lists, bold emphasis, tables and links to source emails. It uses only the user's authorized inbox records.
+The dashboard summarizes live mailbox and task state: total emails, unread mail, Gmail-important messages, open tasks and upcoming deadlines.
 
 </details>
 
 <details>
-<summary><b>02 — Navigation and dropdown menu</b></summary>
+<summary><b>02 — Real Gmail inbox</b></summary>
 
 <div align="center">
-  <img src="docs/screenshots/dashboard.png" width="92%" alt="KNIT dashboard navigation"/>
+  <img src="docs/screenshots/01-inbox.png" width="92%" alt="KNIT Gmail inbox"/>
 </div>
 
-The Gmail-inspired three-line menu opens a full navigation drawer with Inbox, Important, AI Chat, Tasks, Analytics, Settings and email folders.
+The smart inbox organizes imported Gmail messages and provides live category filters, search, status controls and newest/oldest sorting.
 
 </details>
 
 <details>
-<summary><b>03 — Real inbox workspace</b></summary>
+<summary><b>03 — Important email view</b></summary>
 
 <div align="center">
-  <img src="docs/screenshots/inbox.png" width="92%" alt="KNIT inbox workspace"/>
+  <img src="docs/screenshots/02-important.png" width="92%" alt="KNIT important email view"/>
 </div>
 
-The inbox reflects the real connected mailbox. Demo seeding is disabled, and counts are generated directly from stored Gmail records.
+Important mail is calculated from real Gmail labels and KNIT actions, keeping category badges and sidebar counts accurate.
+
+</details>
+
+<details>
+<summary><b>04 — Gmail-grounded AI chat</b></summary>
+
+<div align="center">
+  <img src="docs/screenshots/03-ai-chat.png" width="92%" alt="KNIT AI chat"/>
+</div>
+
+AI conversations remain grounded in the connected mailbox and provide Markdown responses, source-email context and conversation history.
 
 </details>
 

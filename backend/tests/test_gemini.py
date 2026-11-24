@@ -32,7 +32,7 @@ def test_create_gemini_client_uses_bounded_retries(monkeypatch):
     retry_options = options["retry_options"]
     assert retry_options.attempts == 2
     assert retry_options.initial_delay == 0.5
-    assert retry_options.max_delay == 2.0
+    assert retry_options.max_delay == 2.5
     assert retry_options.http_status_codes == [408, 429, 500, 502, 503, 504]
 
 

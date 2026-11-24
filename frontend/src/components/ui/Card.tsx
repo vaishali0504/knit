@@ -11,7 +11,7 @@ export const Card: React.FC<CardProps> = ({
   children,
   ...props
 }) => {
-  const baseStyles = 'rounded-[20px] transition-all duration-200'
+  const baseStyles = 'rounded-2xl transition-all duration-200'
 
   const variantStyles = {
     default: 'bg-white border border-border shadow-soft',

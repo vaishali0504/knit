@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     # Gemini AI configuration
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-3.5-flash"
-    GEMINI_TIMEOUT_SECONDS: int = 60
+    GEMINI_TIMEOUT_SECONDS: int = 20
 
     # Gmail OAuth configuration. Credentials remain backend-only.
     GMAIL_INTEGRATION_ENABLED: bool = False

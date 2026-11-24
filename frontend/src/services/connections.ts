@@ -26,13 +26,6 @@ export interface SyncAccountResult {
   message: string | null
 }
 
-export interface GmailConnectionStatus {
-  enabled: boolean
-  credentials_configured: boolean
-  sync_max_messages: number
-  sync_page_size: number
-}
-
 export class ConnectionApiError extends Error {
   readonly statusCode: number
 
@@ -61,23 +54,6 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 export async function listConnectedAccounts(): Promise<ConnectedAccount[]> {
   const result = await request<{ items: ConnectedAccount[] }>('/api/connections')
   return result.items
-}
-
-export function getGmailConnectionStatus(): Promise<GmailConnectionStatus> {
-  return request<GmailConnectionStatus>('/api/connections/status')
-}
-
-export function updateGmailSyncSettings(
-  syncMaxMessages: number,
-  syncPageSize: number,
-): Promise<GmailConnectionStatus> {
-  return request<GmailConnectionStatus>('/api/connections/status', {
-    method: 'PATCH',
-    body: JSON.stringify({
-      sync_max_messages: syncMaxMessages,
-      sync_page_size: syncPageSize,
-    }),
-  })
 }
 
 export function startGmailAuthorization(): Promise<{ authorization_url: string }> {

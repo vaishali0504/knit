@@ -11,6 +11,27 @@ MAX_MIME_PARTS = 1000
 MAX_MIME_DEPTH = 50
 
 
+def classify_gmail_content(subject: str, sender_name: str, sender_email: str, body: str) -> str:
+    text = " ".join((subject, sender_name, sender_email, body)).lower()
+    if any(word in text for word in ("internship", "summer intern", "winter intern", "intern role", "graduate trainee")):
+        return "internship"
+    if any(word in text for word in ("interview", "coding round", "assessment round", "hr round", "recruiter", "hiring")) or "talent@" in text:
+        return "interview"
+    if any(word in text for word in ("college", "university", "campus", "admission", "semester", "student", "coursework")):
+        return "college"
+    if any(word in text for word in ("security alert", "password changed", "sign-in", "login alert", "account activity", "important:")):
+        return "important"
+    if any(word in text for word in ("sale", "discount", "offer", "coupon", "deal", "promotion", "limited time")):
+        return "promotions"
+    if any(word in text for word in ("invoice", "receipt", "payment", "subscription", "statement", "delivery", "shipment", "order")):
+        return "updates"
+    if any(word in text for word in ("verify immediately", "urgent action", "phishing", "reset password", "confirm account", "gift card")):
+        return "suspicious"
+    if any(word in text for word in ("family", "friend", "personal", "dinner", "birthday")):
+        return "personal"
+    return "other"
+
+
 class _HTMLText(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
@@ -145,6 +166,14 @@ def normalize_gmail_message(message: dict[str, Any], user_id: int, connected_acc
                     "size": size,
                     "provider_attachment_id": str(part_body.get("attachmentId", ""))[:512],
                 })
+    subject = (headers.get("subject") or "(no subject)")[:500]
+    body = _body(message, snippet)
+    category = classify_gmail_content(
+        subject,
+        sender_name or "Unknown sender",
+        sender_email or "unknown@invalid.local",
+        body,
+    )
     return {
         "user_id": user_id,
         "connected_account_id": connected_account_id,
@@ -153,10 +182,10 @@ def normalize_gmail_message(message: dict[str, Any], user_id: int, connected_acc
         "sender_name": sender_name or "Unknown sender",
         "sender_email": sender_email or "unknown@invalid.local",
         "recipient": recipient,
-        "subject": (headers.get("subject") or "(no subject)")[:500],
-        "body": _body(message, snippet),
+        "subject": subject,
+        "body": body,
         "received_at": _timestamp(message, headers),
-        "category": "other",
+        "category": category,
         "is_read": "UNREAD" not in labels,
         "is_important": "IMPORTANT" in labels,
         "attachments": attachments,

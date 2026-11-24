@@ -179,6 +179,7 @@ export const InboxPlaceholderPage: React.FC = () => {
 
   const handleDelete = async (id: number) => {
     await deleteEmail(id)
+    window.dispatchEvent(new Event('knit:emails-changed'))
     if (emailId) navigate(`/app/inbox?${searchParams.toString()}`)
     else {
       setData((current) => current ? { ...current, items: current.items.filter((item) => item.id !== id), total: current.total - 1 } : current)
@@ -191,6 +192,7 @@ export const InboxPlaceholderPage: React.FC = () => {
     setAiError(null)
     try {
       setAiAnalysis(await analyzeEmail(emailId, regenerate))
+      window.dispatchEvent(new Event('knit:emails-changed'))
     } catch (err) {
       setAiError(err instanceof Error ? err.message : 'Unable to analyze this email.')
     } finally {
@@ -204,6 +206,7 @@ export const InboxPlaceholderPage: React.FC = () => {
     setAiError(null)
     try {
       setAiAnalysis(await correctEmailCategory(emailId, category))
+      window.dispatchEvent(new Event('knit:emails-changed'))
     } catch (err) {
       setAiError(err instanceof Error ? err.message : 'Unable to save category correction.')
     } finally {
@@ -491,7 +494,11 @@ export const InboxPlaceholderPage: React.FC = () => {
             <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
               {activeTitle}
             </h1>
+            <Badge variant="pink" size="sm">Sample data</Badge>
           </div>
+          <p className="text-xs sm:text-sm text-foreground-secondary mt-1">
+            Locally stored demonstration emails. No real Gmail account is connected.
+          </p>
         </div>
         <Button variant="secondary" size="sm" onClick={() => setRefreshKey((value) => value + 1)}>
           <RefreshCw className="w-4 h-4" />

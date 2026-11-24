@@ -41,13 +41,3 @@ export function correctEmailCategory(
     body: JSON.stringify({ category }),
   })
 }
-
-export interface AIConnectionStatus {
-  status: 'connected'
-  model: string
-  response: string
-}
-
-export function checkAIConnection(): Promise<AIConnectionStatus> {
-  return request<AIConnectionStatus>('/api/ai/connection')
-}

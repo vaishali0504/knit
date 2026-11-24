@@ -22,6 +22,7 @@ import {
   X,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { Badge } from '../components/ui/Badge'
 import { getEmailCounts } from '../services/emails'
 import type { EmailCounts } from '../types/email'
 import { getTaskCounts } from '../services/tasks'
@@ -31,10 +32,28 @@ export const DashboardLayout: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
-  const [navigationMenuOpen, setNavigationMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [emailCounts, setEmailCounts] = useState<EmailCounts | null>(null)
   const [pendingTaskCount, setPendingTaskCount] = useState<number | undefined>(undefined)
+
+  useEffect(() => {
+    let cancelled = false
+    const refreshCounts = () => getEmailCounts()
+      .then((counts) => {
+        if (!cancelled) setEmailCounts(counts)
+      })
+      .catch(() => {
+        if (!cancelled) setEmailCounts(null)
+      })
+    refreshCounts()
+    const intervalId = window.setInterval(refreshCounts, 15000)
+    window.addEventListener('knit:emails-changed', refreshCounts)
+    return () => {
+      cancelled = true
+      window.clearInterval(intervalId)
+      window.removeEventListener('knit:emails-changed', refreshCounts)
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -48,7 +67,7 @@ export const DashboardLayout: React.FC = () => {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [location.pathname, location.search])
 
   useEffect(() => {
     let cancelled = false
@@ -63,21 +82,6 @@ export const DashboardLayout: React.FC = () => {
       cancelled = true
     }
   }, [])
-
-  useEffect(() => {
-    setNavigationMenuOpen(false)
-  }, [location.pathname, location.search])
-
-  useEffect(() => {
-    if (!navigationMenuOpen) return
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setNavigationMenuOpen(false)
-    }
-
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [navigationMenuOpen])
 
   const handleLogout = () => {
     logout()
@@ -114,54 +118,52 @@ export const DashboardLayout: React.FC = () => {
 
   const renderNavList = () => (
     <div className="flex flex-col space-y-1 py-2">
-      {[
-        { label: 'Inbox', to: '/app/inbox', icon: Inbox, badge: emailCounts?.all },
-        { label: 'Important', to: '/app/inbox?category=important', icon: Star, badge: emailCounts?.important },
-        { label: 'AI Chat', to: '/app/assistant', icon: Sparkles },
-        { label: 'Tasks', to: '/app/tasks', icon: CheckSquare, badge: pendingTaskCount },
-      ].map((item) => {
+      {navCategories.map((item) => {
         const Icon = item.icon
-        const active = isNavActive(item.to)
+        const active = isNavActive(item.to, item.exact)
         return (
           <NavLink
             key={item.label}
             to={item.to}
             onClick={() => setMobileSidebarOpen(false)}
-            className={`flex items-center justify-between rounded-xl px-3.5 py-2.5 text-[13px] font-medium transition-all ${
+            className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${
               active
                 ? 'bg-pink-surface text-coral font-bold shadow-xs'
                 : 'text-foreground-secondary hover:text-foreground hover:bg-background-secondary'
             }`}
           >
             <div className="flex items-center gap-3">
-              <Icon className={`h-4 w-4 flex-shrink-0 ${active ? 'text-coral' : 'text-foreground-secondary'}`} />
+              <Icon className={`w-4 h-4 flex-shrink-0 ${active ? 'text-coral' : 'text-foreground-secondary'}`} />
               <span>{item.label}</span>
             </div>
-            {item.badge !== undefined && (
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${active ? 'bg-coral text-white' : 'bg-background-secondary border border-border text-foreground-secondary'}`}>
+            {item.badge && (
+              <span
+                className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                  active ? 'bg-coral text-white' : 'bg-background-secondary border border-border text-foreground-secondary'
+                }`}
+              >
                 {item.badge}
               </span>
             )}
           </NavLink>
         )
       })}
-
     </div>
   )
 
   return (
-    <div className="min-h-screen bg-transparent flex flex-col lg:flex-row">
+    <div className="min-h-screen bg-background-secondary flex flex-col lg:flex-row">
       {/* Desktop Left Sidebar (Sticky) */}
-      <aside className="hidden lg:flex w-64 bg-white/95 backdrop-blur-xl border-r border-border/80 flex-col justify-between h-screen sticky top-0 z-30 select-none">
+      <aside className="hidden lg:flex w-64 bg-white border-r border-border flex-col justify-between h-screen sticky top-0 z-30 select-none">
         <div className="flex flex-col h-full overflow-hidden">
           {/* Logo / Brand Header */}
-          <div className="px-5 py-5 border-b border-border/80 flex items-center justify-between">
+          <div className="p-6 border-b border-border flex items-center justify-between">
             <NavLink to="/app" className="flex items-center gap-2.5">
               <div className="w-9 h-9 rounded-xl bg-coral flex items-center justify-center text-white shadow-coral-sm">
                 <Mail className="w-4.5 h-4.5" />
               </div>
               <div>
-                <span className="font-extrabold font-display text-xl tracking-tight text-foreground block leading-none">
+                <span className="font-extrabold text-xl tracking-tight text-foreground block leading-none">
                   KNIT
                 </span>
                 <span className="text-[10px] font-semibold text-coral uppercase tracking-wider block mt-1">
@@ -169,12 +171,15 @@ export const DashboardLayout: React.FC = () => {
                 </span>
               </div>
             </NavLink>
+            <Badge variant="pink" size="sm">
+              MVP
+            </Badge>
           </div>
 
           {/* 14 Navigation Items (Scrollable) */}
           <div className="flex-1 overflow-y-auto px-4 py-3 custom-scrollbar">
-            <span className="knit-muted-label text-foreground-secondary/70 px-3 block mb-2">
-              Your workspace
+            <span className="text-[10px] font-bold uppercase tracking-wider text-foreground-secondary/70 px-3 block mb-1">
+              Navigation
             </span>
             {renderNavList()}
           </div>
@@ -271,123 +276,23 @@ export const DashboardLayout: React.FC = () => {
       {/* Main App Workspace Canvas */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Utility Header */}
-        <div className="hidden lg:flex knit-glass-panel border-b border-border/80 h-16 px-8 items-center justify-between sticky top-0 z-20">
-          <div className="relative flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setNavigationMenuOpen((current) => !current)}
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-white text-foreground-secondary shadow-sm transition-all hover:border-coral/30 hover:text-coral"
-              aria-label="Open navigation menu"
-              title="Navigation menu"
-              aria-expanded={navigationMenuOpen}
-            >
-              <Menu className="h-5 w-5" />
-            </button>
-            {navigationMenuOpen && (
-              <>
-                <button
-                  type="button"
-                  className="fixed inset-0 z-40 cursor-default bg-foreground/10 backdrop-blur-[2px]"
-                  aria-label="Close navigation menu"
-                  onClick={() => setNavigationMenuOpen(false)}
-                />
-                <div className="fixed left-0 top-0 z-50 h-screen w-[304px] max-w-[85vw] animate-in slide-in-from-left duration-300 border-r border-border bg-white shadow-2xl">
-                  <div className="flex h-16 items-center gap-3 px-5">
-                    <button
-                      type="button"
-                      onClick={() => setNavigationMenuOpen(false)}
-                      className="flex h-10 w-10 items-center justify-center rounded-xl text-foreground-secondary hover:bg-background-secondary hover:text-foreground"
-                      aria-label="Close navigation menu"
-                    >
-                      <X className="h-5 w-5" />
-                    </button>
-                    <div className="flex items-center gap-2.5">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-coral text-white shadow-coral-sm">
-                        <Mail className="h-4.5 w-4.5" />
-                      </div>
-                      <span className="font-display text-xl font-extrabold tracking-tight text-foreground">KNIT</span>
-                    </div>
-                  </div>
-                  <div className="h-[calc(100vh-64px)] overflow-y-auto px-3 pb-5 custom-scrollbar">
-                    {[
-                      { label: 'Overview', to: '/app', icon: LayoutDashboard, exact: true },
-                      { label: 'Inbox', to: '/app/inbox', icon: Inbox, badge: emailCounts?.all },
-                      { label: 'Important', to: '/app/inbox?category=important', icon: Star, badge: emailCounts?.important },
-                      { label: 'AI Chat', to: '/app/assistant', icon: Sparkles },
-                      { label: 'Tasks', to: '/app/tasks', icon: CheckSquare, badge: pendingTaskCount },
-                    ].map((item) => {
-                      const Icon = item.icon
-                      const active = isNavActive(item.to, item.exact)
-                      return (
-                        <NavLink
-                          key={item.label}
-                          to={item.to}
-                          onClick={() => setNavigationMenuOpen(false)}
-                          className={`mt-1 flex items-center justify-between rounded-xl px-4 py-3 text-sm font-medium transition-all ${active ? 'bg-pink-surface text-coral font-bold' : 'text-foreground-secondary hover:bg-background-secondary hover:text-foreground'}`}
-                        >
-                          <span className="flex items-center gap-3"><Icon className="h-4 w-4" />{item.label}</span>
-                          {item.badge !== undefined && <span className="rounded-full bg-background-secondary px-2 py-0.5 text-[10px] font-bold">{item.badge}</span>}
-                        </NavLink>
-                      )
-                    })}
-                    <div className="mx-4 my-3 border-t border-border" />
-                    <p className="knit-muted-label mb-1 px-4 py-1 text-foreground-secondary/70">Workspace</p>
-                    {[
-                      { label: 'Analytics', to: '/app/analytics', icon: BarChart3 },
-                      { label: 'Settings', to: '/app/settings', icon: Settings },
-                    ].map((item) => {
-                      const Icon = item.icon
-                      return (
-                        <NavLink
-                          key={item.label}
-                          to={item.to}
-                          onClick={() => setNavigationMenuOpen(false)}
-                          className="mt-1 flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium text-foreground-secondary hover:bg-background-secondary hover:text-foreground"
-                        >
-                          <Icon className="h-4 w-4" />
-                          {item.label}
-                        </NavLink>
-                      )
-                    })}
-                    <p className="knit-muted-label mb-1 mt-4 px-4 py-1 text-foreground-secondary/70">Email folders</p>
-                    {navCategories
-                      .filter((item) => ['Internship', 'Interview', 'College', 'Personal', 'Promotions', 'Updates', 'Suspicious'].includes(item.label))
-                      .map((item) => {
-                        const Icon = item.icon
-                        const active = isNavActive(item.to)
-                        return (
-                          <NavLink
-                            key={item.label}
-                            to={item.to}
-                            onClick={() => setNavigationMenuOpen(false)}
-                            className={`mt-1 flex items-center justify-between rounded-xl px-4 py-2.5 text-sm font-medium ${active ? 'bg-pink-surface text-coral' : 'text-foreground-secondary hover:bg-background-secondary hover:text-foreground'}`}
-                          >
-                            <span className="flex items-center gap-3"><Icon className="h-4 w-4" />{item.label}</span>
-                            {item.badge !== undefined && <span className="text-[10px] font-bold">{item.badge}</span>}
-                          </NavLink>
-                        )
-                      })}
-                  </div>
-                </div>
-              </>
-            )}
-            {/* Global Search Bar */}
-            <div className="relative w-96">
-              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-foreground-secondary/70" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    const query = searchQuery.trim()
-                    navigate(query ? `/app/inbox?q=${encodeURIComponent(query)}` : '/app/inbox')
-                  }
-                }}
-                placeholder="Search emails, tasks, or extracted opportunities..."
-                className="w-full bg-white/90 border border-border rounded-xl pl-10 pr-4 py-2.5 text-[13px] text-foreground placeholder:text-foreground-secondary/60 shadow-sm focus:outline-none focus:ring-2 focus:ring-coral/15 focus:border-coral transition-all"
-              />
-            </div>
+        <div className="hidden lg:flex bg-white border-b border-border h-16 px-8 items-center justify-between sticky top-0 z-20">
+          {/* Global Search Bar */}
+          <div className="relative w-96">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-foreground-secondary/70" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  const query = searchQuery.trim()
+                  navigate(query ? `/app/inbox?q=${encodeURIComponent(query)}` : '/app/inbox')
+                }
+              }}
+              placeholder="Search sample emails, tasks, or extracted opportunities..."
+              className="w-full bg-background-secondary border border-border rounded-xl pl-10 pr-4 py-2 text-xs text-foreground placeholder:text-foreground-secondary/60 focus:outline-none focus:ring-2 focus:ring-coral/20 focus:border-coral transition-all"
+            />
           </div>
 
           {/* Quick Info & Navigation Status */}
@@ -406,7 +311,7 @@ export const DashboardLayout: React.FC = () => {
         </div>
 
         {/* Dynamic Nested Page Content */}
-        <main className="flex-1 px-5 py-6 sm:px-8 sm:py-8 max-w-[1480px] w-full mx-auto">
+        <main className="flex-1 p-6 sm:p-8 max-w-7xl w-full mx-auto">
           <Outlet />
         </main>
       </div>

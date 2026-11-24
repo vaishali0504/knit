@@ -11,7 +11,7 @@ from app.models.connected_account import ConnectedAccount
 from app.models.email import Email
 from app.providers import GmailProvider, GmailProviderError, ProviderPage
 from app.schemas.sync import SyncResponse
-from app.services.gmail_normalizer import normalize_gmail_message
+from app.services.gmail_normalizer import classify_gmail_content, normalize_gmail_message
 from app.services.token_encryption import TokenEncryptionError, decrypt_token, encrypt_token
 
 
@@ -205,6 +205,9 @@ def _set_user_owned_fields(existing: Email, values: dict) -> bool:
         if existing.is_important != values["is_important"]:
             existing.is_important = values["is_important"]
             changed = True
+    if existing.category == "other" and existing.category != values["category"]:
+        existing.category = values["category"]
+        changed = True
     return changed
 
 
@@ -420,6 +423,28 @@ def _complete_full_resync(db: Session, account: ConnectedAccount, lease_token: s
     _save_sync_progress(db, account, lease_token, full_resync_started_at=None)
 
 
+def _reclassify_existing_emails(db: Session, account: ConnectedAccount) -> bool:
+    changed = False
+    emails = db.query(Email).filter(
+        Email.connected_account_id == account.id,
+        Email.category == "other",
+        Email.is_deleted.is_(False),
+    ).all()
+    for email in emails:
+        category = classify_gmail_content(
+            email.subject,
+            email.sender_name,
+            email.sender_email,
+            email.body,
+        )
+        if category != "other":
+            email.category = category
+            changed = True
+    if changed:
+        db.commit()
+    return changed
+
+
 def sync_gmail_account(db: Session, user_id: int, account_id: int) -> SyncResponse:
     if not settings.GMAIL_INTEGRATION_ENABLED:
         raise SyncError("integration_disabled", "Gmail integration is not enabled.", 503)
@@ -472,6 +497,7 @@ def sync_gmail_account(db: Session, user_id: int, account_id: int) -> SyncRespon
         if not complete:
             _finish_or_raise(db, account, lease_token, "incremental_sync_pending")
             return _response(account, sync_type, "incremental_sync_pending", **totals, limit_reached=True)
+        _reclassify_existing_emails(db, account)
         _finish_or_raise(db, account, lease_token, "complete", "provider_request_failed" if totals["failed"] else None)
         return _response(account, sync_type, "complete", **totals, limit_reached=False)
     except GmailProviderError as exc:

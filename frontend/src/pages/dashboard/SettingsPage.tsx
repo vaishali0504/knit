@@ -7,14 +7,12 @@ import {
   Info,
   RefreshCw,
   RotateCcw,
-  Sparkles,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
-import { ConnectionApiError, disconnectAccount, getGmailConnectionStatus, listConnectedAccounts, startGmailAuthorization, syncAccount, updateGmailSyncSettings, type ConnectedAccount } from '../../services/connections'
-import { checkAIConnection } from '../../services/ai'
+import { ConnectionApiError, disconnectAccount, listConnectedAccounts, startGmailAuthorization, syncAccount, type ConnectedAccount } from '../../services/connections'
 import { acquireSyncLock, connectionStatusPresentation, disconnectConfirmation, releaseSyncLock, syncCountsMessage, syncOutcomePresentation } from '../../services/connectionPresentation.js'
 
 type SyncFeedback = { kind: 'success' | 'retry' | 'reconnect' | 'full-resync'; message: string; counts?: string }
@@ -31,12 +29,6 @@ export const SettingsPage: React.FC = () => {
   const [syncFeedback, setSyncFeedback] = useState<Record<number, SyncFeedback>>({})
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
-  const [gmailStatus, setGmailStatus] = useState<{ enabled: boolean; credentials_configured: boolean; sync_max_messages: number; sync_page_size: number } | null>(null)
-  const [syncMaxMessages, setSyncMaxMessages] = useState(100)
-  const [syncPageSize, setSyncPageSize] = useState(25)
-  const [savingSyncSettings, setSavingSyncSettings] = useState(false)
-  const [aiChecking, setAiChecking] = useState(false)
-  const [aiNotice, setAiNotice] = useState<string | null>(null)
 
   const refreshAccounts = useCallback(async () => {
     const result = await listConnectedAccounts()
@@ -57,16 +49,6 @@ export const SettingsPage: React.FC = () => {
     })
     return () => { active = false }
   }, [refreshAccounts])
-
-  useEffect(() => {
-    getGmailConnectionStatus()
-      .then((status) => {
-        setGmailStatus(status)
-        setSyncMaxMessages(status.sync_max_messages)
-        setSyncPageSize(status.sync_page_size)
-      })
-      .catch(() => setGmailStatus(null))
-  }, [])
 
   const callbackResult = searchParams.get('gmail')
   const callbackNotice = callbackResult ? (
@@ -113,6 +95,7 @@ export const SettingsPage: React.FC = () => {
     setNotice(null)
     try {
       const result = await syncAccount(account.id)
+      window.dispatchEvent(new Event('knit:emails-changed'))
       const outcome = syncOutcomePresentation(result)
       setSyncFeedback((current) => ({
         ...current,
@@ -140,39 +123,6 @@ export const SettingsPage: React.FC = () => {
     } finally {
       releaseSyncLock(syncingRef.current, account.id)
       setSyncingIds(new Set(syncingRef.current))
-    }
-  }
-
-  const testAIConnection = async () => {
-    setAiChecking(true)
-    setAiNotice(null)
-    try {
-      const result = await checkAIConnection()
-      setAiNotice(`Gemini connected successfully using ${result.model}.`)
-    } catch (err) {
-      setAiNotice(err instanceof Error ? err.message : 'Gemini connection check failed.')
-    } finally {
-      setAiChecking(false)
-    }
-  }
-
-  const saveSyncSettings = async () => {
-    if (syncPageSize > syncMaxMessages) {
-      setNotice('Sync page size cannot exceed the maximum messages per sync.')
-      return
-    }
-    setSavingSyncSettings(true)
-    setNotice(null)
-    try {
-      const status = await updateGmailSyncSettings(syncMaxMessages, syncPageSize)
-      setGmailStatus(status)
-      setSyncMaxMessages(status.sync_max_messages)
-      setSyncPageSize(status.sync_page_size)
-      setNotice('Gmail sync settings saved.')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to save Gmail sync settings.')
-    } finally {
-      setSavingSyncSettings(false)
     }
   }
 
@@ -223,7 +173,7 @@ export const SettingsPage: React.FC = () => {
             </div>
 
             {accounts.length === 0 ? (
-              <Button variant="secondary" size="sm" disabled={working || loading || gmailStatus?.enabled === false} onClick={() => void connectGmail()} className="self-start sm:self-auto">
+              <Button variant="secondary" size="sm" disabled={working || loading} onClick={() => void connectGmail()} className="self-start sm:self-auto">
                 {working ? 'Opening Google…' : 'Connect Gmail'}
               </Button>
             ) : null}
@@ -232,7 +182,7 @@ export const SettingsPage: React.FC = () => {
           {loading && <p className="text-xs text-foreground-secondary" role="status" aria-live="polite">Loading connected accounts…</p>}
           {error && <div className="rounded-lg bg-red-50 p-3 text-xs text-red-700" role="alert"><p>{error}</p>{!loading && accounts.length === 0 && <Button variant="ghost" size="sm" className="mt-2" onClick={() => { setLoading(true); setError(null); void refreshAccounts().catch((err: unknown) => setError(err instanceof Error ? err.message : 'Unable to load connected accounts.')).finally(() => setLoading(false)) }}>Try again</Button>}</div>}
           {(notice || callbackNotice) && <p className="rounded-lg bg-background-secondary p-3 text-xs text-foreground-secondary" role="status">{notice || callbackNotice}</p>}
-          {!loading && !error && accounts.length === 0 && <div className="rounded-xl border border-border bg-white p-4 text-sm text-foreground-secondary" role="status">{gmailStatus?.enabled === false ? 'Gmail connection is not enabled yet. Configure the Google OAuth credentials and Gmail integration setting in the backend environment.' : 'No Gmail account is connected. Connect an account to import read-only email data into KNIT.'}</div>}
+          {!loading && !error && accounts.length === 0 && <div className="rounded-xl border border-border bg-white p-4 text-sm text-foreground-secondary" role="status">No Gmail account is connected. Connect an account to import read-only email data into KNIT.</div>}
           {accounts.map((account) => (
             <div key={account.id} className="space-y-3 rounded-xl border border-border bg-white p-4">
               <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -266,40 +216,6 @@ export const SettingsPage: React.FC = () => {
             </div>
           ))}
 
-          <div className="rounded-xl border border-border bg-white p-4">
-            <div className="mb-4">
-              <h3 className="text-sm font-bold text-foreground">Gmail Sync Settings</h3>
-              <p className="mt-1 text-xs text-foreground-secondary">Control how much Gmail data is imported during each sync.</p>
-            </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-              <label className="text-xs font-bold text-foreground">
-                Maximum messages per sync
-                <input
-                  type="number"
-                  min={1}
-                  max={500}
-                  value={syncMaxMessages}
-                  onChange={(event) => setSyncMaxMessages(Math.min(500, Math.max(1, Number(event.target.value) || 1)))}
-                  className="mt-1.5 w-full rounded-xl border border-border bg-white px-3 py-2 text-sm font-normal text-foreground focus:border-coral focus:outline-none focus:ring-2 focus:ring-coral/20"
-                />
-              </label>
-              <label className="text-xs font-bold text-foreground">
-                Messages per page
-                <input
-                  type="number"
-                  min={1}
-                  max={100}
-                  value={syncPageSize}
-                  onChange={(event) => setSyncPageSize(Math.min(100, Math.max(1, Number(event.target.value) || 1)))}
-                  className="mt-1.5 w-full rounded-xl border border-border bg-white px-3 py-2 text-sm font-normal text-foreground focus:border-coral focus:outline-none focus:ring-2 focus:ring-coral/20"
-                />
-              </label>
-              <Button type="button" variant="secondary" size="sm" disabled={savingSyncSettings} onClick={() => void saveSyncSettings()}>
-                {savingSyncSettings ? 'Saving…' : 'Save settings'}
-              </Button>
-            </div>
-          </div>
-
           <div className="rounded-xl bg-white border border-border p-4 text-xs text-foreground-secondary space-y-2">
             <div className="flex items-center gap-2 text-foreground font-semibold">
               <Info className="w-4 h-4 text-coral" />
@@ -328,28 +244,6 @@ export const SettingsPage: React.FC = () => {
             </ul>
           </div>
         </div>
-      </Card>
-
-      <Card className="p-6 sm:p-8 bg-white border border-border space-y-4">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-coral" />
-              <h2 className="text-lg font-bold text-foreground">AI Provider Connection</h2>
-            </div>
-            <p className="mt-1 text-xs sm:text-sm text-foreground-secondary">
-              Verify that the backend can reach Gemini with the configured API key.
-            </p>
-          </div>
-          <Button variant="secondary" size="sm" disabled={aiChecking} onClick={() => void testAIConnection()}>
-            {aiChecking ? 'Testing…' : 'Test connection'}
-          </Button>
-        </div>
-        {aiNotice && (
-          <p className="rounded-lg bg-background-secondary p-3 text-xs text-foreground-secondary" role="status">
-            {aiNotice}
-          </p>
-        )}
       </Card>
 
       {/* User Profile Information */}

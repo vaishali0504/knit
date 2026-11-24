@@ -66,9 +66,8 @@ export const DashboardOverviewPage: React.FC = () => {
     <div className="space-y-7 animate-in fade-in duration-300">
       <div className="flex flex-col justify-between gap-4 pb-1 sm:flex-row sm:items-center">
         <div>
-          <p className="knit-muted-label mb-2 text-coral">Today at a glance</p>
-          <h1 className="knit-page-heading text-foreground">Welcome back, {displayName}</h1>
-          <p className="mt-2 text-sm text-foreground-secondary sm:text-[15px]">Here is what is happening across your inbox and tasks.</p>
+          <h1 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">Welcome back, {displayName}</h1>
+          <p className="mt-1 text-xs text-foreground-secondary sm:text-sm">Your inbox and task overview, based on your KNIT data.</p>
         </div>
         <div className="flex items-center gap-2 self-start sm:self-auto">
           <Badge variant="neutral" size="sm">{data.timezone} dates</Badge>
@@ -181,13 +180,13 @@ export const DashboardOverviewPage: React.FC = () => {
 
 function MetricCard({ label, value, hint, icon, accent }: { label: string; value: number; hint: string; icon: React.ReactNode; accent?: string }) {
   return (
-    <Card className="knit-subtle-card p-5">
+    <Card className="p-5">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <span className="knit-muted-label text-foreground-secondary">{label}</span>
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-pink-surface text-coral">{icon}</span>
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-foreground-secondary">{label}</span>
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-pink-surface text-coral">{icon}</span>
       </div>
-      <p className={`font-display text-3xl font-extrabold leading-none ${accent || 'text-foreground'}`}>{value}</p>
-      <p className="mt-2 text-xs leading-5 text-foreground-secondary">{hint}</p>
+      <p className={`text-2xl font-extrabold ${accent || 'text-foreground'}`}>{value}</p>
+      <p className="mt-1 text-[11px] text-foreground-secondary">{hint}</p>
     </Card>
   )
 }

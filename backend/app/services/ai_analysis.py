@@ -90,6 +90,11 @@ def generate_analysis(db: Session, user: User, email_id: int, regenerate: bool =
         raise HTTPException(status_code=502, detail="Gemini analysis could not be completed. Please try again later.")
 
     analysis_repo.upsert(db, user.id, email.id, result, settings.GEMINI_MODEL)
+    effective_category = result.classification.category.lower()
+    if email.category != effective_category:
+        email.category = effective_category
+        db.add(email)
+        db.commit()
     return _response(db, user, email_id, cached=False)
 
 
@@ -99,4 +104,10 @@ def set_manual_category(db: Session, user: User, email_id: int, request: ManualC
     if not analysis:
         raise HTTPException(status_code=404, detail="Generate AI analysis before correcting the category.")
     analysis_repo.set_manual_category(db, analysis, request.category)
+    email = _owned_email(db, user, email_id)
+    effective_category = request.category.lower()
+    if email.category != effective_category:
+        email.category = effective_category
+        db.add(email)
+        db.commit()
     return _response(db, user, email_id, cached=True)

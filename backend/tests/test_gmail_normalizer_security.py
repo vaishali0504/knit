@@ -1,6 +1,21 @@
 import base64
 
-from app.services.gmail_normalizer import MAX_BODY_CHARS, MAX_MIME_DEPTH, _walk_parts, normalize_gmail_message
+from app.services.gmail_normalizer import (
+    MAX_BODY_CHARS,
+    MAX_MIME_DEPTH,
+    _walk_parts,
+    classify_gmail_content,
+    normalize_gmail_message,
+)
+
+
+def test_sync_classifier_categorizes_common_mail_types():
+    assert classify_gmail_content("Summer Internship application received", "", "", "") == "internship"
+    assert classify_gmail_content("Interview invitation", "", "talent@company.test", "") == "interview"
+    assert classify_gmail_content("University semester update", "", "", "") == "college"
+    assert classify_gmail_content("Security alert: new sign-in", "", "", "") == "important"
+    assert classify_gmail_content("Limited time discount", "", "", "") == "promotions"
+    assert classify_gmail_content("Your package shipment update", "", "", "") == "updates"
 
 
 def test_malformed_and_deep_mime_tree_is_bounded_and_normalizes_safely():

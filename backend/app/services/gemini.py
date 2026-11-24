@@ -45,7 +45,7 @@ def _create_gemini_client():
             retry_options=types.HttpRetryOptions(
                 attempts=2,
                 initial_delay=0.5,
-                max_delay=2.0,
+                max_delay=2.5,
                 exp_base=2.0,
                 jitter=0.2,
                 http_status_codes=[408, 429, 500, 502, 503, 504],

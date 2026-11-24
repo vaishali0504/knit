@@ -1,6 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import { useNavigate } from 'react-router-dom'
 import {
   ChevronLeft,
@@ -13,6 +11,7 @@ import {
   Sparkles,
   Trash2,
 } from 'lucide-react'
+import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import {
   createConversation,
@@ -45,7 +44,6 @@ export const AssistantPlaceholderPage: React.FC = () => {
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState('')
-  const [retryPrompt, setRetryPrompt] = useState<string | null>(null)
 
   const loadList = async (nextPage = page) => {
     setLoadingList(true)
@@ -115,46 +113,24 @@ export const AssistantPlaceholderPage: React.FC = () => {
 
   const submitMessage = async (event: React.FormEvent) => {
     event.preventDefault()
-    await sendContent(message)
-  }
-
-  const sendContent = async (contentValue: string) => {
-    const content = contentValue.trim()
-    if (!content || sending) return
+    const content = message.trim()
+    if (!content) return
 
     setSending(true)
     setError(null)
-    setRetryPrompt(null)
-    setMessage('')
-
     try {
       let active = conversation
       if (!active) {
         active = await createConversation(content.slice(0, 80))
+        setConversation(active)
       }
-      const optimisticMessage = {
-        id: -Date.now(),
-        role: 'user' as const,
-        content,
-        references: [],
-        created_at: new Date().toISOString(),
-      }
-      setConversation({
-        ...active,
-        messages: [...active.messages, optimisticMessage],
-      })
-
-      await sendAssistantMessage(active.id, content)
+      const assistantMessage = await sendAssistantMessage(active.id, content)
+      void assistantMessage
       setConversation(await getConversation(active.id))
+      setMessage('')
       await loadList(1)
     } catch (err) {
-      setRetryPrompt(content)
       setError(err instanceof Error ? err.message : 'Unable to send your question.')
-      setConversation((current) =>
-        current
-          ? { ...current, messages: current.messages.filter((item) => item.id >= 0) }
-          : current,
-      )
     } finally {
       setSending(false)
     }
@@ -236,7 +212,7 @@ export const AssistantPlaceholderPage: React.FC = () => {
         )}
       </aside>
 
-      <section className="knit-glass-panel border border-border/80 rounded-[22px] overflow-hidden flex flex-col min-h-[600px] xl:h-[calc(100vh-160px)] shadow-soft">
+      <section className="bg-white border border-border rounded-2xl overflow-hidden flex flex-col min-h-[600px] xl:h-[calc(100vh-160px)]">
         <div className="px-5 py-4 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-xl bg-pink-surface flex items-center justify-center text-coral">
@@ -247,6 +223,7 @@ export const AssistantPlaceholderPage: React.FC = () => {
               <p className="text-[11px] text-foreground-secondary">Questions grounded in your authorized emails</p>
             </div>
           </div>
+          <Badge variant="pink" size="sm">Demo inbox</Badge>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
@@ -258,7 +235,7 @@ export const AssistantPlaceholderPage: React.FC = () => {
               <div>
                 <h3 className="text-lg font-bold text-foreground">Ask about your inbox</h3>
                 <p className="text-xs text-foreground-secondary mt-1">
-                  Answers use only the emails in your connected mailbox.
+                  Answers use only your authorized sample email records.
                 </p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -278,33 +255,8 @@ export const AssistantPlaceholderPage: React.FC = () => {
 
           {conversation?.messages.map((item) => (
             <div key={item.id} className={`flex ${item.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[82%] rounded-[18px] px-4 py-3.5 ${item.role === 'user' ? 'bg-coral text-white shadow-coral-sm animate-in fade-in slide-in-from-right-2 duration-300' : 'bg-white border border-border text-foreground shadow-soft animate-in fade-in slide-in-from-bottom-2 duration-500'}`}>
-                {item.role === 'assistant' ? (
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      h2: ({ children }) => <h2 className="mt-1 mb-2 text-base font-extrabold text-foreground">{children}</h2>,
-                      h3: ({ children }) => <h3 className="mt-3 mb-1.5 text-sm font-bold text-foreground">{children}</h3>,
-                      p: ({ children }) => <p className="mb-2 text-sm leading-6 text-foreground last:mb-0">{children}</p>,
-                      strong: ({ children }) => <strong className="font-bold text-foreground">{children}</strong>,
-                      ul: ({ children }) => <ul className="mb-2 ml-5 list-disc space-y-1 text-sm leading-6 text-foreground">{children}</ul>,
-                      ol: ({ children }) => <ol className="mb-2 ml-5 list-decimal space-y-1 text-sm leading-6 text-foreground">{children}</ol>,
-                      li: ({ children }) => <li className="break-words">{children}</li>,
-                      blockquote: ({ children }) => <blockquote className="my-2 border-l-2 border-coral pl-3 text-sm italic text-foreground-secondary">{children}</blockquote>,
-                      table: ({ children }) => <div className="my-3 overflow-x-auto rounded-lg border border-border"><table className="w-full border-collapse text-xs">{children}</table></div>,
-                      thead: ({ children }) => <thead className="bg-white/70">{children}</thead>,
-                      th: ({ children }) => <th className="border-b border-border px-3 py-2 text-left font-bold text-foreground">{children}</th>,
-                      td: ({ children }) => <td className="border-b border-border px-3 py-2 align-top text-foreground-secondary last:border-b-0">{children}</td>,
-                      code: ({ children }) => <code className="rounded bg-white px-1.2 py-0.5 font-mono text-xs text-coral">{children}</code>,
-                      pre: ({ children }) => <pre className="my-2 overflow-x-auto rounded-lg bg-white p-3 text-xs">{children}</pre>,
-                      a: ({ children, href }) => <a href={href} target="_blank" rel="noreferrer" className="font-medium text-coral underline underline-offset-2">{children}</a>,
-                    }}
-                  >
-                    {item.content}
-                  </ReactMarkdown>
-                ) : (
-                  <p className="text-sm whitespace-pre-wrap break-words">{item.content}</p>
-                )}
+              <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${item.role === 'user' ? 'bg-coral text-white' : 'bg-pink-surface/60 border border-border text-foreground'}`}>
+                <p className="text-sm whitespace-pre-wrap break-words">{item.content}</p>
                 {item.role === 'assistant' && item.references.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-border space-y-1">
                     <p className="text-[11px] font-bold text-coral">Source emails</p>
@@ -332,20 +284,10 @@ export const AssistantPlaceholderPage: React.FC = () => {
             </div>
           )}
 
-          {sending && (
-            <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <div className="knit-thinking rounded-2xl border border-border bg-white px-4 py-3 shadow-soft" aria-label="KNIT is thinking">
-                <span />
-                <span />
-                <span />
-              </div>
-            </div>
-          )}
-
           {error && (
             <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700 flex items-center justify-between gap-3">
               <span>{error}</span>
-              <button type="button" onClick={() => retryPrompt && void sendContent(retryPrompt)} className="text-red-700 font-bold flex items-center gap-1">
+              <button type="button" onClick={() => loadList(page)} className="text-red-700 font-bold flex items-center gap-1">
                 <RefreshCw className="w-3.5 h-3.5" /> Retry
               </button>
             </div>
@@ -357,14 +299,6 @@ export const AssistantPlaceholderPage: React.FC = () => {
           <textarea
             value={message}
             onChange={(event) => setMessage(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
-                event.preventDefault()
-                if (message.trim() && !sending) {
-                  void sendContent(message)
-                }
-              }
-            }}
             placeholder="Ask about your emails..."
             rows={2}
             maxLength={4000}
